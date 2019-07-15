@@ -1,0 +1,70 @@
+1. PULL an image
+$docker pull 'ImageName'
+
+2. RUN an image - into a container
+$docker run 'ImageName'
+
+3.LIST ALL images
+$docker images
+
+5. LIST all Containers
+$docker ps -a 
+
+6. LIST running containers
+$docker ps
+
+7. DELETE a container
+$docker rm 'ContainerId'
+
+8. DELETE an Image
+$docker rmi 'ImageId'
+
+9. PORT
+$docker run -p 80:8080 'ImageName' 
+In the Docker host if you use port 80 to access a resource : Internally it will be forwarded to port 8080 in the container
+
+10. STOP
+$docker stop 'ContainerId' 
+
+11 : Thin R/W layer of Image
+
+A Docker Image is a set of file system layers which are identified by unique ids.
+
+If 'B' image is pulled which uses a particular file system say 'A-fs' in an already downloaded 'A' image, then 'A-fs' which would not be downloaded again.!
+
+And all containers use the existing image.
+
+Once a Docker Image is baked you can not write anything into it - It is Read Only.
+
+When an Image is run a thin R/W layer associated with the container will be created.
+
+When the contaner is deleted the R/W layer also gets deleted.
+
+So if you have a DB Image that writes to DB / Or a image that does logging / Or swap src code when a container is running?
+The thin layer wont solve these purposes -  So Volumes are used.
+
+while running a container you can define volumes.
+
+12. How do you get source code into a container
+Step 1 : Create a container volume that points to a source code folder in the host.
+Step 2 : Add your source code into a custome image - that can be used to create a running container.
+
+13. VOLUMES
+
+$docker run -p 80:8080 - /var/www 'ImageName'
+-v : creates a volume
+/var/www : Container volume
+
+In this command docker creates the mounted folder + OR we could manage it.
+
+To find out the path of the host folder that is mounted to the container - Inspect
+
+$docker inspect 'ContainerId'
+"mounts" : [ 
+{
+'source':HOST_LOCATION, //(Docker automatically writes it to this location)
+'destination':VOLUME LOCATION IN CONTAINER
+}]
+
+When code in container writes to a volume /var/www - /var/www is going to be an alias for the mounted folder that is in your docker host.
+
