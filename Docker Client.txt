@@ -26,6 +26,9 @@ In the Docker host if you use port 80 to access a resource : Internally it will 
 10. STOP
 $docker stop 'ContainerId' 
 
+11. REMOVE A CONTAINER 
+$docker rm ContainerID
+
 11 : Thin R/W layer of Image
 
 A Docker Image is a set of file system layers which are identified by unique ids.
@@ -36,26 +39,33 @@ And all containers use the existing image.
 
 Once a Docker Image is baked you can not write anything into it - It is Read Only.
 
-When an Image is run a thin R/W layer associated with the container will be created.
+So, When an Image is run into a container a thin R/W layer on top of the image which is associated with the container will be created - for the container to read and write to.
 
-When the contaner is deleted the R/W layer also gets deleted.
+When the container is deleted the R/W layer also gets deleted.
 
 So if you have a DB Image that writes to DB / Or a image that does logging / Or swap src code when a container is running?
 The thin layer wont solve these purposes -  So Volumes are used.
 
 while running a container you can define volumes.
 
-12. How do you get source code into a container
+12. HOOKING SOURCE CODE INTO A CONTAINER
 Step 1 : Create a container volume that points to a source code folder in the host.
 Step 2 : Add your source code into a custome image - that can be used to create a running container.
 
 13. VOLUMES
 
-$docker run -p 80:8080 - /var/www 'ImageName'
--v : creates a volume
-/var/www : Container volume
+- it is a directory associated with a container.
+- can be shared and reused amongst containers.
+- multiple containers can write to this volume.
+- or a single container can have multiple volumes.
+- If the container is deleted the volume persists.
 
-In this command docker creates the mounted folder + OR we could manage it.
+$docker run -p 80:8080 -v /var/www 'ImageName'
+-v : docker will create a volume in the host machine + docker mounts it 
+/var/www : container commands can refer to "/var/www" to refer (read/write) to the volume which is created in host machine.
+i.e /var/www is a container volume alias.
+
+In this command docker creates a folder and mounts it in to the container + OR we could manage it by ourselfes.
 
 To find out the path of the host folder that is mounted to the container - Inspect
 
@@ -63,8 +73,124 @@ $docker inspect 'ContainerId'
 "mounts" : [ 
 {
 'source':HOST_LOCATION, //(Docker automatically writes it to this location)
-'destination':VOLUME LOCATION IN CONTAINER
+'destination':VOLUME LOCATION IN CONTAINER i.e alias
 }]
 
 When code in container writes to a volume /var/www - /var/www is going to be an alias for the mounted folder that is in your docker host.
+
+14. LINK SRC CODE INTO A CONTAINER:
+$ docker run -p 8080:3000 -v $(pwd):/var/www -w "/var/www" ImageName npm start
+$(pwd) : Use the current working directory from the host to mount as a volume aliased as /var/www in the container
+-w : this sets the context of where to run the commands.
+npm start : This would be your set of commands that execute after the container and volume are created
+
+15. REMOVE A CONTAINER  + ASSOCIATED VOLUME [Clean up volumes managed by docker]
+$docker run -p 80:8080 -v /var/www 'ImageName' : this command will create a volume managed by docker.
+cleanup command : docker rm -v ContainerID.
+
+17. HOOK UP SOURCE CODE.
+$docker run -p 8080:3000 -v $(pwd):/var/www
+
+$(pwd) : Go from the current working directory and use that as a host mount where the container should read and write from.
+/var/www : this is internal to the container. container commands refer to /var/www to write to the volume created in host.
+
+$docker run -p 8080:3000 -v $(pwd):/var/www -w "/var/www" nodeIMG npm start
+
+/var/www : volume in the container
+-v $(pwd) :  volume in the container actually points here
+-w : working directory /
+     : the directory where you want to run your commands
+     : what is the folder in the container where any commands should be executed from ..? 
+     : sets the context of where to run the commands.
+       
+16. Building custom images using docker file using docker instructions.
+Docker Instructions :
+ - Work with environment variables
+ - copy source code into the image itself.
+ - Each instructions create intermediate images which are cached behind the scenes.
+
+FROM AnotherDockerImage 
+RUN You can run a command or get something from the internet Ex: npm install
+COPY copy your source code bundle . /var/www
+ENTRYPOINT To execute commands at runtime for the container. ["npm","start"]
+WORKDIR this sets the context for different commands we wanna run from /var/www Ex: nodejs package.json location
+CMD ["npm", "install"]
+VOLUME we can define THE actual volume and control how it stores in the host for the container. ["/var/www","~/Desktop/Share"]
+EXPOSE this instruction indicates the ports on which a container listens for connections 
+	- this should be understandable by default like a react app uses 3000 
+	  so a container running your react project should listen to 3k.
+ONBUILD this command executes after the current docker file build completes.
+                ONBUILD executes on any child image derived FROM the curent image
+ENV  these environment variables can be used in the containers
+
+17. BUILD CUSTOM IMAGES : customImage.docker
+FROM node
+ENV PORT=3000
+COPY . /var/www
+WORKDIR /var/www
+RUN npm install
+ENTRYPOINT ["npm","start"]
+EXPOSE $PORT
+VOLUME ["/var/www"] - HEY DOCKER, AFTER THE CONTAINER 'RUNS' - MOUNT THE 'CONTAINER VOLUME' ON TO A FOLDER IN THE HOST SYSTEM
+
+what happens here : we copy our source code into a folder called /var/www
+/var/www is gonna be setup as a volume 
+the host actually is aware of where the source code lives.
+
+18. BUILD AN IMAGE
+$docker build -t username/ImageName .
+(.) dot at the ending of the above command  : where the docker file is
+
+19. docker run -d -p 3000:3000 customImage
+this will not work as the volume lives outside the container.
+
+20. docker 'RUN' INSTRUCTION 
+Ex : RUN echo "hi there"
+when the docker image is built this command is executed. One way is it is useful for tracing while image is being generated.
+
+21. docker 'CMD; instruction
+after the container is formed then this commands will be executed.
+CMD ["bash", "scriptone.sh"]
+
+22. sudo docker exec -it containerID /bin/sh
+
+23. Volume in Docker
+#Docker file contents
+FROM abcImage
+Volume vol1
+
+#while running a container
+$ docker run --rm -d -v $(pwd):vol1 ImageName
+#you will be seeing two entries.
+            {
+                "Type": "bind",
+                "Source": "/home/abbuser/Desktop/OwnTracks",
+                "Destination": "/vol1",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            }
+
+            {
+                "Type": "volume",
+                "Name": "2de5deff1f11163e46d2366aa696c167d035cba8340ee083b2343ae54f251103",
+                "Source": "/var/lib/docker/volumes/2de5deff1f11163e46d2366aa696c167d035cba8340ee083b2343ae54f251103/_data",
+                "Destination": "vol1",
+                "Driver": "local",
+                "Mode": "",
+                "RW": true,
+                "Propagation": ""
+            }
+
+24 . CLEAN UP
+
+remove all unused volumes : $docker system prune --volumes
+remove all stopped containers/dangling imagesbuild cache/unused networks. - $docker system prune
+
+
+25.
+
+
+
+
 
