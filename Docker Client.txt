@@ -169,23 +169,36 @@ $docker build -t username/ImageName .
 
 19. docker run -d -p 3000:3000 customImage
 this will not work as the volume lives outside the container.
-
+	
 20. 
+DOCKER FILE INSTRUCTIONS
+
+20.1
 'RUN' INSTRUCTION 
 
 - it has two forms
 shell form : RUN <command> 
+	: will invoke the shell automatically [/bin/sh -c by default]
 exec form : RUN ["executable", "param1", "param2"]
+	: wil not invoke a command line shell
 
 Ex : RUN echo "hi there"
 when the docker image is built this command is executed. 
-One way is it is useful for tracing while image is being generated.
+One way is it is useful for tracing while image is being generated + apt-get install commands.
 
 
+20.2 
+'CMD; instruction
 
+After the CONTAINER (not the image.. i.e after you use '$docker run image' )is formed then this commands will be executed.
 
-21. docker 'CMD; instruction
-after the container is formed then this commands will be executed.
+- to specifiy what component is to be run by your image with arguments in the following form 
+CMD ["executable", "param1", "param2" ... ]
+-you can override CMD when you are starting up your container ...
+$ docker run [OPTIONS] IMAGE [COMMAND] [ARGS]
+- you can specify only one cmd instruction.. i.e only the last one will be executed
+- an interactive shell is a good example to give your users something to work with: CMD [PYTHON] 
+
 CMD ["bash", "scriptone.sh"]
 
 22. sudo docker exec -it containerID /bin/sh
