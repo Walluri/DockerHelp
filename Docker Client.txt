@@ -31,24 +31,7 @@ $docker stop 'ContainerId'
 11. REMOVE A CONTAINER 
 $docker rm ContainerID
 
-12 :What is the "Thin R/W layer of Image"
 
-A Docker Image is a set of file system layers which are identified by unique ids.
-
-If 'B' image is pulled which uses a particular file system say 'A-fs' in an already downloaded 'A' image, then 'A-fs' which would not be downloaded again.!
-
-And all containers use the existing image.
-
-Once a Docker Image is baked you can not write anything into it - It is Read Only.
-
-So, When an Image is run into a container a thin R/W layer on top of the image which is associated with the container will be created - for the container to read and write to.
-
-When the container is deleted the R/W layer also gets deleted.
-
-So if you have a DB Image that writes to DB / Or a image that does logging / Or swap src code when a container is running?
-The thin layer wont solve these purposes -  So Volumes are used.
-
-while running a container you can define volumes.
 
 14. 
 VOLUMES
@@ -61,63 +44,54 @@ VOLUMES
 
 14.1 
 THE '-v' flag 
+	- When somebody runs the below command, what happens.
+	    $docker run -p 80:80 -v "$(pwd)":/usr/share/nginx/html nginx
 
-$docker run -p 80:8080 -v /var/www 'ImageName'
+We shall learn the explanation of the -v command with an example.
+
+	- let us pull a plain nginx file and run it.
+		   $ docker run -p 80:80 nginx bash
+                - There will be a configuration file in /etc/nginx/nginx.conf, and it will be looking for a html file in "/usr/share/nginx/html" directory
+                   So if you want to use the nginx image and load you file you can run the below command
+	   	$ docker run -d -p 80:80 -v $(pwd):/usr/share/nginx/html nginx 
+	- In your pwd directory you will be having your index.html directory
+
+	- Now if you want to package a new iamge with your source code, use a docker file
+
+		 FROM nginx
+		COPY . /usr/share/nginx/html
+	- Now lets build it 
+		$ docker build -t MyNginx .
+	- Start your container [no need of the volume as you have already copied the content inside the docker file and you have copied it to the lcoation where nginx looks for html file]
+		$ docker run -d -p 80:80 MyNginx
+	   
+	- now there is a conf file for nginx -  you can either map it also to a volume so that your conf file will be picked up OR you can copy it.
+   
+
+
+Theory : 
 -v : docker will 'create a volume' in the host machine and 'mount' it
-/var/www : container commands can refer to "/var/www" to refer (read/write) to the volume which is created in 'host machine'.
-i.e /var/www is a container volume alias.
-Location of volume created in the host machine : '/var/lib/docker/volumes'
-
-In this command docker creates a folder and mounts it in to the container + OR we could manage it by ourselfes.
-
+/usr/share/nginx/html : container commands which refer to "/usr/share/nginx/html" , will from now on use the volume "pwd" which is created in 'host machine'.
+i.e /usr/share/nginx/html is a container volume alias.
+For Anonymous volumes : Location of volume created in the host machine : '/var/lib/docker/volumes'
+In such a case docker creates a folder and mounts it in to the container + OR we could manage it by ourselfes.
 To find out the path of the host folder that is mounted to the container - Inspect
-
 $docker inspect 'ContainerId'
 "mounts" : [ 
 {
 'source':HOST_LOCATION, //(Docker automatically writes it to this location)
 'destination':VOLUME LOCATION IN CONTAINER i.e alias
 }]
+When code in container writes to a volume /usr/share/nginx/html - /usr/share/nginx/html is going to be an alias for the mounted folder 'pwd' that is in your docker host.
 
-When code in container writes to a volume /var/www - /var/www is going to be an alias for the mounted folder that is in your docker host.
-
-14.2 
-THE 'VOLUME' instruction
-
-You can use the VOLUME instruction in docker file to tell docker that the stuff you store in that specific directory should be stored in the host file system - not in the container file system.
-This implies that stuff stored in that volume will persist even after you destroy the container.
-This volume can be REMOVED with the docker rm command after stopping the container
-The volume can also be REMOVED on exit if you start the container with docker run --rm 
-
+ 
 14.3 
 List volumes 
 
 $ docker volume ls
 OR
 $ docker volume inspect
-
-14. 
-LINK SRC CODE INTO A CONTAINER   or   HOOKING SOURCE CODE INTO A CONTAINER
-
-Method 1 : Create a container volume that points to an 'existing folder IN the host' which contains source code. [using -v flag]
-Method 2 : Add (ADD/COPY) your source code into a custom image - that can be used to create a running container. [use the VOLUME instruction]
-
-Method 1 Example :
-$ docker run -p 8080:3000 -v $(pwd):/var/www -w "/var/www" ImageName npm start
-
-$(pwd) : Go from the current working directory and use that as a host mount where the container should read and write from.
-            : in other words.. Use the current working directory from the host to mount as a volume aliased as /var/www in the container
-
-/var/www : volume in the container
-	: this is internal to the container. container commands refer to /var/www to write to the volume created in host.
--v $(pwd) :  volume in the container actually points here
--w : working directory /
-     : the directory where you want to run your commands
-     : what is the folder in the container where any commands should be executed from ..? 
-     : sets the context of where to run the commands.
-npm start : This would be your set of commands that execute after the container and volume are created]
-
-
+  
 14. 
 DIFFERENCE between VOLUME instruction in the docker file and 'docker run -v ' ... is that 
 
@@ -238,8 +212,21 @@ remove all stopped containers/dangling imagesbuild cache/unused networks. - $doc
 
 
 25.
+What is the "Thin R/W layer of Image"
 
+A Docker Image is a set of file system layers which are identified by unique ids.
 
+If 'B' image is pulled which uses a particular file system say 'A-fs' in an already downloaded 'A' image, then 'A-fs' which would not be downloaded again.!
 
+And all containers use the existing image.
 
+Once a Docker Image is baked you can not write anything into it - It is Read Only.
 
+So, When an Image is run into a container a thin R/W layer on top of the image which is associated with the container will be created - for the container to read and write to.
+
+When the container is deleted the R/W layer also gets deleted.
+
+So if you have a DB Image that writes to DB / Or a image that does logging / Or swap src code when a container is running?
+The thin layer wont solve these purposes -  So Volumes are used.
+
+while running a container you can define volumes.
